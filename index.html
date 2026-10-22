@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Restricted</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; background: #07090a; color: #b8ffd0;
+    font-family: "Courier New", monospace; }
+  body { display: flex; align-items: center; justify-content: center; }
+  main { width: min(420px, 88vw); text-align: center; }
+  h1 { font-size: 14px; letter-spacing: .35em; font-weight: normal; margin: 0 0 28px; opacity: .8; }
+  input { width: 100%; box-sizing: border-box; background: transparent; color: inherit;
+    border: 1px solid #2f5a40; padding: 14px; font: inherit; font-size: 16px;
+    text-align: center; letter-spacing: .15em; outline: none; }
+  input:focus { border-color: #b8ffd0; }
+  button { margin-top: 14px; width: 100%; padding: 12px; background: #b8ffd0; color: #07090a;
+    border: 0; font: inherit; letter-spacing: .25em; cursor: pointer; }
+  #msg { height: 20px; margin-top: 18px; font-size: 13px; color: #ff6b6b; }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+  #stage { display: none; width: min(960px, 96vw); aspect-ratio: 16 / 9; }
+  iframe, video { width: 100%; height: 100%; border: 0; background: #000; }
+</style>
+</head>
+<body>
+<main id="box">
+  <h1>ACCESS RESTRICTED</h1>
+  <form id="f" autocomplete="off">
+    <input id="pw" type="password" placeholder="ENTER PASSWORD" autofocus>
+    <button type="submit">UNLOCK</button>
+  </form>
+  <div id="msg"></div>
+</main>
+<div id="stage"></div>
+<script>
+window.PAYLOAD = {"salt":"K9Xg2eNlmo8j5xdrLd6K3g==","iv":"qEFRNkWhUXuYfXU1","ct":"2MXo6L4sVl+I6k5rXLNVxlnHiTs+S/fBWHKDUS2ev2iVyLpbXOb8Bc7Lq3CmolGKCvCbZu8NnYzNr1I="};
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function unlock(pw) {
+  const p = window.PAYLOAD;
+  const base = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(pw.trim().toLowerCase()), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: b64(p.salt), iterations: 200000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(p.iv) }, key, b64(p.ct));
+  return new TextDecoder().decode(pt);
+}
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = document.getElementById('pw').value;
+  try {
+    const url = await unlock(pw);
+    document.getElementById('box').style.display = 'none';
+    const stage = document.getElementById('stage');
+    stage.style.display = 'block';
+    const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/);
+    if (yt) {
+      stage.innerHTML = '<iframe allowfullscreen allow="autoplay; fullscreen" src="https://www.youtube.com/embed/' + yt[1] + '"></iframe>';
+    } else {
+      const v = document.createElement('video');
+      v.src = url; v.controls = true; v.playsInline = true;
+      stage.appendChild(v);
+    }
+    document.title = '...';
+  } catch (err) {
+    document.getElementById('msg').textContent = 'ACCESS DENIED';
+    const box = document.getElementById('box');
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    document.getElementById('pw').value = '';
+  }
+});
+</script>
+</body>
+</html>
